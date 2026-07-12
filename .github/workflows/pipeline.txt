@@ -1,6 +1,27 @@
-///PURPOSE///
-This file describes how the pipeline process works. It consists of:
-yfinance API → data_pull.py → data/raw/MSFT_daily.parquet → labels.py → (next: splits, features, model)
+/PURPOSE/
+This is a pipeline predicting MSFT's N-day-forward direction (binary), designed around not cheating rather than around accuracy.
 
-///data_pull.py///
-This Python file works by downloading 10 years of daily OHLCV, saves it in data\raw
+It consists of:
+Yahoo finance API → data_pull.py → data/raw/MSFT_daily.parquet → labels.py → (next: splits, features, model)
+
+//data_pull.py//
+- This Python file works by downloading 10 years of daily OHLCV, saves it in data\raw
+- There are sanity runs checking row count, date range, NaNs, duplicate dates, calendar gaps
+- After downloading data from yfinance API, recieve a JSON file which is converted into a Pandas Dataframe and then clean and sort it
+ 
+///labels.py//
+- Big there here is the parameter N, N represents what the operation is in terms of N days
+- The last N rows of the dataset can't be labeled, as their "N days later" hasn't happened yet, so they get NaN and are dropped
+ -- e.g. At N=5 that's why we had 2,514 rows but 2,509 labels
+- shift(-N) results in each row looking N down, while shift(N) results in each row look N up
+
+///refresh-data.yml///
+-  CRON statement to grab fresh data every Saturday from GitHub's servers, currently must redownload all 2.5+ rows of data per refresh
+
+//baselines.py//
+- MSFT went up in ~59% of all 5-day windows. So a "model" that just always says up is right 58.9% of the time while knowing literally nothing. If we didn't write that number down, a future model scoring 60% would look impressive when it's actually near-worthless.
+- always_up(): a column of 1s ("up"), one per day. Never looks at any data. Scores 58.9% = the market's natural upward drift. This is the bar every model must beat.
+- persistence(): "whatever the stock did over the last N days, guess it keeps doing." Implemented by sliding the label column down N rows — shift(+N), looking up at the past — so each day sees the direction of the window that just finished. Scored 49.8% = a literal coin flip. Finding: last week's direction tells you nothing about next week.
+- evaluate_baseline(): the grader. Lines up guesses against true labels, counts % correct. Only counts days where both a guess and an answer exist (called coverage — e.g., persistence can't guess on the first N days since no window has finished yet). Every model later gets graded by this same function, so all accuracies in the project are computed identically.
+- Saves a receipt: writes the scores to results/baselines_MSFT_n5.json so later steps compare against saved numbers, not memory.
+- The shift rule the label may look to the future/down; everything else may only look up (past). Persistence looking up is why it's legal; a model input looking down would be cheating (lookahead bias).

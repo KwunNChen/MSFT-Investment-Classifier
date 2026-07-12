@@ -1,0 +1,26 @@
+{
+  "ticker": "MSFT",
+  "n": 5,
+  "date_range": [
+    "2016-07-11",
+    "2026-07-02"
+  ],
+  "labeled_rows": 2509,
+  "baselines": {
+    "always_up": {
+      "accuracy": 0.5890793144679155,
+      "covered_rows": 2509,
+      "total_labeled_rows": 2509
+    },
+    "always_down": {
+      "accuracy": 0.4109206855320845,
+      "covered_rows": 2509,
+      "total_labeled_rows": 2509
+    },
+    "persistence": {
+      "accuracy": 0.4976038338658147,
+      "covered_rows": 2504,
+      "total_labeled_rows": 2509
+    }
+  }
+}
