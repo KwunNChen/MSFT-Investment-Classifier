@@ -1,0 +1,45 @@
+# Weekly data refresh: re-downloads the full sliding 10-year MSFT window and
+# commits the updated parquet. Full re-download on purpose — yfinance
+# recalculates Adj Close retroactively on each dividend, so appending to the
+# cache would leave stale rows. The sliding window also drops rows older than
+# 10 years automatically.
+#
+# Note: GitHub auto-disables cron workflows after ~60 days without repo
+# activity. If refreshes stop, re-enable with one click on the Actions tab.
+name: refresh-data
+
+on:
+  schedule:
+    - cron: "0 13 * * 6" # Saturdays 13:00 UTC (~9 AM ET), after Friday close
+  workflow_dispatch: # manual "Run workflow" button
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Re-download data (sliding 10-year window)
+        run: python data_pull.py --force
+
+      - name: Commit refreshed data if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/raw/*.parquet
+          if git diff --cached --quiet; then
+            echo "Data unchanged, nothing to commit."
+          else
+            git commit -m "chore: weekly data refresh"
+            git push
+          fi
