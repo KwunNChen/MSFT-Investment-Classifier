@@ -2,7 +2,7 @@
 This is a pipeline predicting MSFT's N-day-forward direction (binary), designed around not cheating rather than around accuracy.
 
 It consists of:
-Yahoo finance API → data_pull.py → data/raw/MSFT_daily.parquet → labels.py → (next: splits, features, model)
+Yahoo finance API → data_pull.py → data/raw/MSFT_daily.parquet → labels.py → baselines.py → splits.py
 
 //data_pull.py//
 - This Python file works by downloading 10 years of daily OHLCV, saves it in data\raw
@@ -22,6 +22,22 @@ Yahoo finance API → data_pull.py → data/raw/MSFT_daily.parquet → labels.py
 - MSFT went up in ~59% of all 5-day windows. So a "model" that just always says up is right 58.9% of the time while knowing literally nothing. If we didn't write that number down, a future model scoring 60% would look impressive when it's actually near-worthless.
 - always_up(): a column of 1s ("up"), one per day. Never looks at any data. Scores 58.9% = the market's natural upward drift. This is the bar every model must beat.
 - persistence(): "whatever the stock did over the last N days, guess it keeps doing." Implemented by sliding the label column down N rows — shift(+N), looking up at the past — so each day sees the direction of the window that just finished. Scored 49.8% = a literal coin flip. Finding: last week's direction tells you nothing about next week.
-- evaluate_baseline(): the grader. Lines up guesses against true labels, counts % correct. Only counts days where both a guess and an answer exist (called coverage — e.g., persistence can't guess on the first N days since no window has finished yet). Every model later gets graded by this same function, so all accuracies in the project are computed identically.
+- evaluate_baseline(): the grader. Lines up guesses against true labels, counts % correct. Only counts days where both a guess and an answer exist (called coverage; e.g., persistence can't guess on the first N days since no window has finished yet). Every model later gets graded by this same function, so all accuracies in the project are computed identically.
 - Saves a receipt: writes the scores to results/baselines_MSFT_n5.json so later steps compare against saved numbers, not memory.
 - The shift rule the label may look to the future/down; everything else may only look up (past). Persistence looking up is why it's legal; a model input looking down would be cheating (lookahead bias).
+
+//splits.py//
+- cut the timeline into train → gap → test, in that order
+- doing so lets the model learn only from the past and the answers can't bleed across the boundary
+- this part is really hard to explain so I'll visualize it:
+    Day:      1    2    3    4    5    6  ‖  7    8    9    10
+                    └────────⤴               ──── TEST ────
+               day 4 reads day 6          ‖
+
+    Day:      1    2    3    4  |  5    6  ‖  7    8    9    10
+          ──── TRAIN ────           GAP        ──── TEST ────
+    -- So the logic here is that since we are looking N forwards, and let's assume N=2
+    -- On the 6th day, we'd be looking into the 8th day, which is bad because that's in the testing set
+        --- Therefore, there must be a gap section, that prevents you from looking from the training set into testing set
+
+    
