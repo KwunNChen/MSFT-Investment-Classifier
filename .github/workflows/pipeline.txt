@@ -1,0 +1,6 @@
+///PURPOSE///
+This file describes how the pipeline process works. It consists of:
+yfinance API → data_pull.py → data/raw/MSFT_daily.parquet → labels.py → (next: splits, features, model)
+
+///data_pull.py///
+This Python file works by downloading 10 years of daily OHLCV, saves it in data\raw
