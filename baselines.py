@@ -42,18 +42,22 @@ def persistence(labels: pd.Series, n: int) -> pd.Series:
     return labels.shift(n)
 
 
-def evaluate_baseline(preds: pd.Series, labels: pd.Series) -> dict:
+def evaluate_baseline(predictions: pd.Series, labels: pd.Series) -> dict:
     """Accuracy over rows where both a prediction and a true label exist.
 
     Reused by later model-evaluation steps so every accuracy in this project
     is computed the same way.
     """
-    both = preds.notna() & labels.notna()
-    covered = int(both.sum())
-    accuracy = float((preds[both] == labels[both]).mean()) if covered else float("nan")
+    has_prediction_and_label = predictions.notna() & labels.notna()
+    covered_rows = int(has_prediction_and_label.sum())
+    accuracy = (
+        float((predictions[has_prediction_and_label] == labels[has_prediction_and_label]).mean())
+        if covered_rows
+        else float("nan")
+    )
     return {
         "accuracy": accuracy,
-        "covered_rows": covered,
+        "covered_rows": covered_rows,
         "total_labeled_rows": int(labels.notna().sum()),
     }
 
@@ -64,9 +68,9 @@ def main() -> None:
     parser.add_argument("--ticker", default="MSFT")
     args = parser.parse_args()
 
-    df = fetch_raw(args.ticker, years=10)
-    labels = make_label(df["Adj Close"], args.n)
-    labeled = labels.dropna()
+    price_data = fetch_raw(args.ticker, years=10)
+    labels = make_label(price_data["Adj Close"], args.n)
+    labeled_days = labels.dropna()
 
     results = {
         "always_up": evaluate_baseline(always_up(labels), labels),
@@ -75,18 +79,24 @@ def main() -> None:
     }
 
     print(f"\n=== Naive baselines: {args.ticker}, horizon {args.n} trading days ===")
-    print(f"Labeled rows: {len(labeled)} ({labeled.index.min().date()} -> {labeled.index.max().date()})\n")
-    for name, r in results.items():
+    print(
+        f"Labeled rows: {len(labeled_days)} "
+        f"({labeled_days.index.min().date()} -> {labeled_days.index.max().date()})\n"
+    )
+    for baseline_name, result in results.items():
         print(
-            f"  {name:<12} accuracy {r['accuracy'] * 100:5.1f}%   "
-            f"(coverage {r['covered_rows']}/{r['total_labeled_rows']})"
+            f"  {baseline_name:<12} accuracy {result['accuracy'] * 100:5.1f}%   "
+            f"(coverage {result['covered_rows']}/{result['total_labeled_rows']})"
         )
 
-    majority_share = max(labeled.mean(), 1 - labeled.mean())
-    match = abs(results["always_up"]["accuracy"] - labeled.mean()) < 1e-12
+    majority_share = max(labeled_days.mean(), 1 - labeled_days.mean())
+    always_up_matches_percent_up = (
+        abs(results["always_up"]["accuracy"] - labeled_days.mean()) < 1e-12
+    )
     print(
         f"\nCross-check vs step 2: majority class share = {majority_share * 100:.1f}%, "
-        f"always_up accuracy matches % up exactly: {'OK' if match else 'MISMATCH'}"
+        f"always_up accuracy matches % up exactly: "
+        f"{'OK' if always_up_matches_percent_up else 'MISMATCH'}"
     )
     print(
         f"Persistence coverage is {args.n} rows short: the first {args.n} labeled days "
@@ -94,16 +104,16 @@ def main() -> None:
     )
 
     RESULTS_DIR.mkdir(exist_ok=True)
-    out = RESULTS_DIR / f"baselines_{args.ticker}_n{args.n}.json"
-    payload = {
+    output_path = RESULTS_DIR / f"baselines_{args.ticker}_n{args.n}.json"
+    summary = {
         "ticker": args.ticker,
         "n": args.n,
-        "date_range": [str(labeled.index.min().date()), str(labeled.index.max().date())],
-        "labeled_rows": len(labeled),
+        "date_range": [str(labeled_days.index.min().date()), str(labeled_days.index.max().date())],
+        "labeled_rows": len(labeled_days),
         "baselines": results,
     }
-    out.write_text(json.dumps(payload, indent=2))
-    print(f"\nSaved -> {out}")
+    output_path.write_text(json.dumps(summary, indent=2))
+    print(f"\nSaved -> {output_path}")
 
 
 if __name__ == "__main__":

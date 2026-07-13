@@ -20,8 +20,8 @@ from data_pull import fetch_raw
 from labels import make_label
 
 
-def time_split(index: pd.Index, n: int, test_frac: float = 0.2) -> tuple:
-    """Split a chronologically sorted index into (train, gap, test) indexes.
+def time_split(dates: pd.Index, n: int, test_frac: float = 0.2) -> tuple:
+    """Split a chronologically sorted date index into (train, gap, test).
 
     test = the final `test_frac` share of rows; gap = the n rows right
     before the test period (excluded from training); train = everything
@@ -31,18 +31,21 @@ def time_split(index: pd.Index, n: int, test_frac: float = 0.2) -> tuple:
         raise ValueError(f"gap must equal the horizon n >= 1, got {n}")
     if not 0 < test_frac < 1:
         raise ValueError(f"test_frac must be between 0 and 1, got {test_frac}")
-    if not index.is_monotonic_increasing:
-        raise ValueError("index must be sorted oldest -> newest before splitting")
+    if not dates.is_monotonic_increasing:
+        raise ValueError("dates must be sorted oldest -> newest before splitting")
 
-    test_rows = int(round(len(index) * test_frac))
-    test_start = len(index) - test_rows
-    train_end = test_start - n
-    if train_end < 1:
+    test_row_count = int(round(len(dates) * test_frac))
+    test_start_position = len(dates) - test_row_count
+    train_end_position = test_start_position - n
+    if train_end_position < 1:
         raise ValueError(
-            f"not enough rows ({len(index)}) for test_frac={test_frac} plus a {n}-row gap"
+            f"not enough rows ({len(dates)}) for test_frac={test_frac} plus a {n}-row gap"
         )
 
-    return index[:train_end], index[train_end:test_start], index[test_start:]
+    train_dates = dates[:train_end_position]
+    gap_dates = dates[train_end_position:test_start_position]
+    test_dates = dates[test_start_position:]
+    return train_dates, gap_dates, test_dates
 
 
 def main() -> None:
@@ -52,31 +55,34 @@ def main() -> None:
     parser.add_argument("--ticker", default="MSFT")
     args = parser.parse_args()
 
-    df = fetch_raw(args.ticker, years=10)
-    labels = make_label(df["Adj Close"], args.n).dropna()
+    price_data = fetch_raw(args.ticker, years=10)
+    labels = make_label(price_data["Adj Close"], args.n).dropna()
 
-    train_idx, gap_idx, test_idx = time_split(labels.index, args.n, args.test_frac)
+    train_dates, gap_dates, test_dates = time_split(labels.index, args.n, args.test_frac)
 
     print(f"\n=== Time split: {args.ticker}, n={args.n}, test fraction {args.test_frac} ===")
     print(f"Labeled rows: {len(labels)}\n")
-    for name, idx in [("train", train_idx), ("gap", gap_idx), ("test", test_idx)]:
-        note = "  (dropped from training; size = horizon n)" if name == "gap" else ""
-        print(f"  {name:<5} {len(idx):5d} rows   {idx.min().date()} -> {idx.max().date()}{note}")
+    for piece_name, piece_dates in [("train", train_dates), ("gap", gap_dates), ("test", test_dates)]:
+        note = "  (dropped from training; size = horizon n)" if piece_name == "gap" else ""
+        print(
+            f"  {piece_name:<5} {len(piece_dates):5d} rows   "
+            f"{piece_dates.min().date()} -> {piece_dates.max().date()}{note}"
+        )
 
     # Leak check: the label of the LAST training row looks n rows forward,
     # landing on the last gap day — strictly before the first test day.
-    last_train_pos = len(train_idx) - 1
-    label_window_end = labels.index[last_train_pos + args.n]
-    first_test_day = test_idx.min()
-    ok = label_window_end < first_test_day
+    last_train_position = len(train_dates) - 1
+    label_window_end = labels.index[last_train_position + args.n]
+    first_test_day = test_dates.min()
+    no_leak = label_window_end < first_test_day
     print(
         f"\nLeak check: last train label looks at the price on {label_window_end.date()}, "
-        f"first test day is {first_test_day.date()} -> {'OK, no overlap' if ok else 'LEAK!'}"
+        f"first test day is {first_test_day.date()} -> {'OK, no overlap' if no_leak else 'LEAK!'}"
     )
 
     print(
-        f"\nClass balance ('% up'):  train {labels[train_idx].mean() * 100:.1f}%   "
-        f"test {labels[test_idx].mean() * 100:.1f}%"
+        f"\nClass balance ('% up'):  train {labels[train_dates].mean() * 100:.1f}%   "
+        f"test {labels[test_dates].mean() * 100:.1f}%"
     )
     print("(A train/test balance mismatch is a regime shift, not a bug — see step 2 notes.)")
 

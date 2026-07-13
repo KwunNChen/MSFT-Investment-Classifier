@@ -7,7 +7,6 @@ time, because it defines the thing we're predicting. Every other module
 Usage:
     python labels.py [--n 5] [--ticker MSFT]
 """
-from __future__ import annotations
 
 import argparse
 
@@ -29,9 +28,9 @@ def make_label(prices: pd.Series, n: int) -> pd.Series:
     """
     if n < 1:
         raise ValueError(f"horizon n must be >= 1, got {n}")
-    future = prices.shift(-n)
-    label = (future > prices).astype(float)
-    label[future.isna()] = float("nan")
+    future_price = prices.shift(-n)
+    label = (future_price > prices).astype(float)
+    label[future_price.isna()] = float("nan")
     return label.rename(f"label_up_{n}d")
 
 
@@ -41,34 +40,37 @@ def main() -> None:
     parser.add_argument("--ticker", default="MSFT")
     args = parser.parse_args()
 
-    df = fetch_raw(args.ticker, years=10)
-    label = make_label(df["Adj Close"], args.n)
+    price_data = fetch_raw(args.ticker, years=10)
+    labels = make_label(price_data["Adj Close"], args.n)
 
-    dropped = label.isna().sum()
-    labeled = label.dropna()
+    unlabelable_rows = labels.isna().sum()
+    labeled_days = labels.dropna()
 
     print(f"\n=== Label: {args.ticker} direction {args.n} trading days ahead ===")
-    print(f"Total rows:   {len(df)}")
-    print(f"Unlabelable:  {dropped} (last {args.n} rows, no future price yet)")
-    print(f"Usable rows:  {len(labeled)}")
+    print(f"Total rows:   {len(price_data)}")
+    print(f"Unlabelable:  {unlabelable_rows} (last {args.n} rows, no future price yet)")
+    print(f"Usable rows:  {len(labeled_days)}")
 
-    counts = labeled.value_counts().sort_index()
-    n_down, n_up = int(counts.get(0.0, 0)), int(counts.get(1.0, 0))
-    pct_up = n_up / len(labeled) * 100
+    label_counts = labeled_days.value_counts().sort_index()
+    down_days, up_days = int(label_counts.get(0.0, 0)), int(label_counts.get(1.0, 0))
+    percent_up = up_days / len(labeled_days) * 100
     print(f"\nClass distribution:")
-    print(f"  up   (1): {n_up:5d}  ({pct_up:.1f}%)")
-    print(f"  down (0): {n_down:5d}  ({100 - pct_up:.1f}%)")
+    print(f"  up   (1): {up_days:5d}  ({percent_up:.1f}%)")
+    print(f"  down (0): {down_days:5d}  ({100 - percent_up:.1f}%)")
     print(
-        f"\nMajority class share: {max(pct_up, 100 - pct_up):.1f}% "
+        f"\nMajority class share: {max(percent_up, 100 - percent_up):.1f}% "
         f"-> the bar any model must beat (this is the 'always "
-        f"{'up' if pct_up >= 50 else 'down'}' baseline, formalized in step 3)."
+        f"{'up' if percent_up >= 50 else 'down'}' baseline, formalized in step 3)."
     )
 
     print("\n% up by calendar year (class balance drifts with market regime):")
-    by_year = labeled.groupby(labeled.index.year).agg(["mean", "count"])
-    for year, row in by_year.iterrows():
-        bar = "#" * int(round(row["mean"] * 30))
-        print(f"  {year}: {row['mean'] * 100:5.1f}% up  ({int(row['count'])} rows)  {bar}")
+    stats_by_year = labeled_days.groupby(labeled_days.index.year).agg(["mean", "count"])
+    for year, year_stats in stats_by_year.iterrows():
+        histogram_bar = "#" * int(round(year_stats["mean"] * 30))
+        print(
+            f"  {year}: {year_stats['mean'] * 100:5.1f}% up  "
+            f"({int(year_stats['count'])} rows)  {histogram_bar}"
+        )
 
 
 if __name__ == "__main__":
