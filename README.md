@@ -147,3 +147,4 @@ Persistence           49.4%
 * a GitHub Actions workflow redownloads the full 10 year window every Saturday and commits the updated parquet
     * This is because Yahoo recalculates Adj Close retroactively whenever a dividend is paid. Append only the new rows and your old rows quietly go stale.
 * the sliding window also drops data older than 10 years automatically. Fresh data and cleanup in one move
+
