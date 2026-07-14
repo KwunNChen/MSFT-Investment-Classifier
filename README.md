@@ -80,6 +80,7 @@ Day:    1    2    3    4  |  5    6  |  7    8    9    10
 ## model.py
 
 * basically this is the part that puts the other code together: assemble the table, split it, learn, predict once, save everything
+##### Logistic Regression
 * logistic regression trained on the pre 2024 slice, evaluated exactly ONCE on the held out test slice
     * Basically, the model learns 5 numbers: how much to trust each of the four clues, plus a base rate. Each day it multiplies clues by trust, adds it up, and squashes that into a probability of up. Above 50% means predict up.
 * the scaler that normalizes features is fitted on training rows ONLY
@@ -87,7 +88,7 @@ Day:    1    2    3    4  |  5    6  |  7    8    9    10
 * test predictions get saved to results/, so every later diagnostic reads that file instead of touching the test set again
     * Basically, the model sits the exam once and the answer sheet gets filed. Peeking at the test set repeatedly while tweaking would slowly turn it into a second training set.
 
-### Results at N = 5
+###### Results at N = 5
 
 ```
 Logistic regression   52.4%
@@ -99,6 +100,28 @@ Persistence           49.4%
 * reported as the honest finding, not tuned away. Four standard technical indicators carry no detectable edge over market drift at the 5 day horizon
 * train accuracy was 60.4% vs 52.4% on test, which looks like overfitting until you notice always_up itself drops the same 8 points between eras
     * Basically, the test years were just a flatter market. The gap is a harder regime, not memorization.
+
+##### Random Forest
+
+* random forest, run with `python model.py` and the model flag set to rf. Same protocol as logistic regression: same split, same gap, same grader, ONE test evaluation
+    * Basically, instead of learning 5 numbers it grows 100 decision trees. Each tree is a flowchart of yes/no questions about the clues ("is volatility above 2%? then is momentum negative?") and all 100 vote on up or down
+    * This means it can catch combo patterns the straight line model is blind to, like "momentum only matters when volatility is high." If any such pattern existed in the clues, the forest could find it
+* the catch: a default forest has enough capacity to MEMORIZE the entire training set, which finally gives the train vs test gap something real to measure
+
+###### Results at N = 5
+
+```
+Random forest         47.6%
+Always up             52.4%
+Persistence           49.4%
+```
+
+* train accuracy was 100.0%. It answered all 1,986 training days perfectly, then scored 47.6% on test: below always up, below persistence, below a coin flip
+    * Basically, the 52.4 point gap IS overfitting. Put it next to logistic regression's 8 point gap (which was just the flatter market) and you can see what memorization looks like vs a regime shift
+* unlike logistic regression, the forest was NOT a rubber stamp: it said up on 360 days and down on 138, with probabilities swinging from 0.21 to 0.96. Real decisions, confidently wrong
+    * This is because the "patterns" it memorized were noise in the training years, and acting on fiction is worse than not acting at all. That's how you lose to a strategy that does literally nothing
+* feature importances came out nearly even (0.24 to 0.27 across all four clues): it leaned on everything equally, to memorize noise
+* takeaway: the humble model learned nothing and tied the baseline. The flexible model "learned" everything and did worse. Neither found signal, because there is no signal in these four clues to find
 
 ### diagnose.py
 
