@@ -1,0 +1,89 @@
+{
+  "ticker": "MSFT",
+  "n": 5,
+  "test_rows_per_window": 250,
+  "min_train_rows": 750,
+  "models": [
+    "logreg",
+    "rf"
+  ],
+  "windows": [
+    {
+      "window": 1,
+      "test_start": "2019-08-08",
+      "test_end": "2020-08-04",
+      "train_rows": 750,
+      "test_rows": 250,
+      "always_up": 0.68,
+      "persistence": 0.524,
+      "logreg": 0.58,
+      "rf": 0.604
+    },
+    {
+      "window": 2,
+      "test_start": "2020-08-05",
+      "test_end": "2021-08-02",
+      "train_rows": 1000,
+      "test_rows": 250,
+      "always_up": 0.588,
+      "persistence": 0.512,
+      "logreg": 0.584,
+      "rf": 0.544
+    },
+    {
+      "window": 3,
+      "test_start": "2021-08-03",
+      "test_end": "2022-07-29",
+      "train_rows": 1250,
+      "test_rows": 250,
+      "always_up": 0.508,
+      "persistence": 0.488,
+      "logreg": 0.508,
+      "rf": 0.508
+    },
+    {
+      "window": 4,
+      "test_start": "2022-08-01",
+      "test_end": "2023-07-28",
+      "train_rows": 1500,
+      "test_rows": 250,
+      "always_up": 0.568,
+      "persistence": 0.524,
+      "logreg": 0.556,
+      "rf": 0.532
+    },
+    {
+      "window": 5,
+      "test_start": "2023-07-31",
+      "test_end": "2024-07-26",
+      "train_rows": 1750,
+      "test_rows": 250,
+      "always_up": 0.604,
+      "persistence": 0.544,
+      "logreg": 0.604,
+      "rf": 0.576
+    },
+    {
+      "window": 6,
+      "test_start": "2024-07-29",
+      "test_end": "2025-07-28",
+      "train_rows": 2000,
+      "test_rows": 250,
+      "always_up": 0.604,
+      "persistence": 0.524,
+      "logreg": 0.604,
+      "rf": 0.48
+    },
+    {
+      "window": 7,
+      "test_start": "2025-07-29",
+      "test_end": "2026-07-02",
+      "train_rows": 2250,
+      "test_rows": 234,
+      "always_up": 0.4700854700854701,
+      "persistence": 0.44017094017094016,
+      "logreg": 0.4700854700854701,
+      "rf": 0.452991452991453
+    }
+  ]
+}

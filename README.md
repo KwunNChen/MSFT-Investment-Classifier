@@ -5,134 +5,43 @@
     * Basically, beginner stock models usually "predict" well because they accidentally saw the future. This project is built so that can't happen, so whatever accuracy comes out is real.
 * This is a learning project, not a trading system, and it will never place trades.
 
-
-## Nerd stuff below
-
-### The pipeline
+## The headline
 
 ```
-Yahoo Finance API > data_pull.py > labels.py > baselines.py > splits.py > features.py > model.py > diagnose.py
+                      test accuracy   the bar (always up)
+Logistic regression        52.4%            52.4%
+Random forest              47.6%            52.4%
 ```
 
-* every stage runs on its own, e.g. `python labels.py`
-* big thing here is the parameter N: the horizon in trading days (default 5), passed in everywhere and NEVER hardcoded
-    * Basically, change one number and the whole pipeline reruns unchanged at N of 1, 21, or 63. Nothing else needs touching.
+* neither model beats "just say up every day." The linear model tied the bar by literally becoming it, and the forest memorized the training data perfectly then did WORSE than doing nothing
+* walk forward validation reran the same experiment across seven eras (2019 to 2026): the models went 0 for 14 against the baseline. The finding holds in every regime
+* conclusion: four textbook technical indicators carry no edge over market drift at the 5 day horizon, and the pipeline is built carefully enough that you can trust that number
 
-## data_pull.py
+![walk forward results](results/walkforward_MSFT_n5.png)
 
-* downloads 10 years of daily OHLCV (about 2,500 rows) and caches it in data/raw
-    * Basically, OHLCV = Open, High, Low, Close, Volume. One row per trading day.
-* sanity checks on every run: row count, date range, NaNs, duplicate dates, calendar gaps
-    * This is because every one of those problems would show up weeks later as a mystery bug in the model. Way cheaper to catch it at the door.
-* yfinance receives JSON from Yahoo and hands back a pandas DataFrame, which gets cleaned and sorted
-* keeps both Close and Adj Close, and everything downstream uses Adj Close ONLY
-    * This is because dividends make the raw Close drop about 0.2% on days where nothing market related happened. Use raw Close and you inject hundreds of fake down moves into the data.
+## Read more
 
-## labels.py
+* [How the pipeline works](docs/pipeline.md): every module explained, from the data pull to the models, plus the automated data refresh
+* [Findings in full](docs/findings.md): the results, the autopsy of what the models actually did, and the walk forward story
 
-* answers: did the price close higher N trading days later? 1 for yes, 0 for no
-* the last N rows can't be labeled, so they get NaN and are dropped
-    * Basically, the newest days are questions with no answers yet. Their "N days later" hasn't happened. At N = 5 that's why 2,514 rows but only 2,509 labels.
-* `shift(-N)` makes each row look N down (its own future). `shift(N)` makes each row look N up (the past)
-    * the label is the ONLY thing in the entire project allowed to look down. Everything else looks up, or it's lookahead bias, the number one way stock models cheat.
+## Run it
 
-## baselines.py
-
-* this is the bar. Zero ML strategies get scored FIRST, so any future model gets judged against them and not against 50%
-* always_up(): a column of 1s, one per day. Never looks at any data, still scores 58.9%
-    * This is because MSFT went up in about 59% of all 5 day windows. Pure market drift. A model scoring 60% would look impressive next to a coin flip while actually being nearly worthless, and that's exactly why the number gets written down.
-* persistence(): whatever the stock did over the last N days, guess it keeps doing that. Scored 49.8%, a LITERAL coin flip
-    * Finding: last week's direction tells you nothing about next week.
-    * Implemented by sliding the label column down N rows (positive shift, looking at the past), so each day only sees the direction of the window that already finished. Sliding it down just 1 row would peek at a window that hasn't closed yet.
-* evaluate_baseline() is the grader. Lines up guesses against true labels, counts % correct
-    * only counts days where both a guess and an answer exist (called coverage)
-    * every model later gets graded by this EXACT function, so all accuracies in the project are computed identically
-* scores get saved to results/ so later steps compare against saved numbers, not memory
-
-## splits.py
-
-* cuts the timeline into train, then gap, then test, strictly in date order
-    * Basically, the model studies old data and gets graded on newer data it never saw. Shuffling would let it study the future.
-* chronology alone is not enough though. This part is easier to visualize, with N = 2:
+Install the packages in requirements.txt, then run the stages in order:
 
 ```
-Day:    1    2    3    4  |  5    6  |  7    8    9    10
-             TRAIN            GAP           TEST
+python data_pull.py     # fetch and cache 10 years of MSFT
+python labels.py        # build the target + class distribution
+python baselines.py     # score the zero ML strategies
+python splits.py        # show the train / gap / test cut
+python features.py      # build the four clues
+python model.py         # train logistic regression, one test evaluation
+python diagnose.py      # autopsy the saved predictions
+python backtest.py      # walk forward validation across eras
 ```
 
-* since labels look N forward, day 6's label reads day 8, and day 8 sits inside the test set. Training on day 6 leaks test prices into training even though the split LOOKS clean
-* so the last N days before the boundary go into a gap that belongs to neither side
-    * This is because the contamination zone is always exactly as deep as the label's reach. That's why the gap always equals the current N.
+Run model.py again with the model flag set to rf for the random forest (same protocol). Every script also takes a flag for N (the horizon in trading days, default 5) and one for the ticker (default MSFT).
 
-## features.py
-
-* goal: turn raw prices into four clues per day for the model to train on, all computed strictly from the past
-* ma_ratio: this week's average price vs this month's, as one number. Positive means trading above the monthly trend
-    * This is because a raw average is just a price level ($52 in 2016, $385 in 2026), useless across eras. The ratio means the same thing in any year: +0.02 = 2% above trend.
-* volatility: the spread (standard deviation) of the last 20 daily returns
-    * Basically, small = calm grind, large = whipsaw. Ours ranged 0.3% to 7%.
-* volume_ratio: today's volume vs its own 20 day average, minus 1
-    * Basically, +3.0 means four times normal volume. Something happened that day.
-* momentum: the return over the past N days. Same N as the label, so the clue and the question always cover matching window sizes
-* the first 20 rows get dropped since the rolling windows have no history to average yet
-    * Mirror image of labels.py: features lose the FIRST rows (no past yet), labels lose the LAST rows (no future yet). The table gets nibbled from both ends.
-
-## model.py
-
-* basically this is the part that puts the other code together: assemble the table, split it, learn, predict once, save everything
-##### Logistic Regression
-* logistic regression trained on the pre 2024 slice, evaluated exactly ONCE on the held out test slice
-    * Basically, the model learns 5 numbers: how much to trust each of the four clues, plus a base rate. Each day it multiplies clues by trust, adds it up, and squashes that into a probability of up. Above 50% means predict up.
-* the scaler that normalizes features is fitted on training rows ONLY
-    * This is because "what does normal look like" has to come from the past. Learn it from all the data and test era statistics sneak into the training, which is leakage even with a perfect split.
-* test predictions get saved to results/, so every later diagnostic reads that file instead of touching the test set again
-    * Basically, the model sits the exam once and the answer sheet gets filed. Peeking at the test set repeatedly while tweaking would slowly turn it into a second training set.
-
-###### Results at N = 5
-
-```
-Logistic regression   52.4%
-Always up             52.4%
-Persistence           49.4%
-```
-
-* the model TIES the naive baseline exactly. Its learned weights are all near zero: it found no usable signal in the four clues and basically rediscovered the always up strategy
-* reported as the honest finding, not tuned away. Four standard technical indicators carry no detectable edge over market drift at the 5 day horizon
-* train accuracy was 60.4% vs 52.4% on test, which looks like overfitting until you notice always_up itself drops the same 8 points between eras
-    * Basically, the test years were just a flatter market. The gap is a harder regime, not memorization.
-
-##### Random Forest
-
-* random forest, run with `python model.py` and the model flag set to rf. Same protocol as logistic regression: same split, same gap, same grader, ONE test evaluation
-    * Basically, instead of learning 5 numbers it grows 100 decision trees. Each tree is a flowchart of yes/no questions about the clues ("is volatility above 2%? then is momentum negative?") and all 100 vote on up or down
-    * This means it can catch combo patterns the straight line model is blind to, like "momentum only matters when volatility is high." If any such pattern existed in the clues, the forest could find it
-* the catch: a default forest has enough capacity to MEMORIZE the entire training set, which finally gives the train vs test gap something real to measure
-
-###### Results at N = 5
-
-```
-Random forest         47.6%
-Always up             52.4%
-Persistence           49.4%
-```
-
-* train accuracy was 100.0%. It answered all 1,986 training days perfectly, then scored 47.6% on test: below always up, below persistence, below a coin flip
-    * Basically, the 52.4 point gap IS overfitting. Put it next to logistic regression's 8 point gap (which was just the flatter market) and you can see what memorization looks like vs a regime shift
-* unlike logistic regression, the forest was NOT a rubber stamp: it said up on 360 days and down on 138, with probabilities swinging from 0.21 to 0.96. Real decisions, confidently wrong
-    * This is because the "patterns" it memorized were noise in the training years, and acting on fiction is worse than not acting at all. That's how you lose to a strategy that does literally nothing
-* feature importances came out nearly even (0.24 to 0.27 across all four clues): it leaned on everything equally, to memorize noise
-* takeaway: the humble model learned nothing and tied the baseline. The flexible model "learned" everything and did worse. Neither found signal, because there is no signal in these four clues to find
-
-### diagnose.py
-
-* given four standard technical clues, logistic regression concluded none of them beat "MSFT usually drifts up," and became the always up baseline with extra steps
-    * Basically, the model always predicted up. ALWAYS, 100% of the time (498 out of 498 test days). This is because its up probability never crossed below 0.5
-    * This is because the probability starts near 60% thanks to the training set (60% of training days were up), and the near zero weights never push it far from there. It lived between 0.52 and 0.74 for two straight years
-* the four piles (confusion matrix): 261 right (the up days), 237 wrong (the down days), 0 and 0 in the "said down" piles, because it never said down once
-* so its errors are exactly the market's down weeks, concentrated in every decline on the chart
-    * the chart in results/ shows it best: the red (wrong) dots paint every drop, because the model kept saying up while the price fell
-
-### Rules the project runs on
+## Rules the project runs on
 
 1. No lookahead. A feature on day T may only use information available by day T's close.
 2. Split by time, never shuffled, with a gap equal to N before the test period.
@@ -141,10 +50,3 @@ Persistence           49.4%
 5. Out of sample accuracy is the headline number, never training accuracy.
 6. Every evaluation gets compared against naive baselines.
 7. A great looking result triggers a leak hunt, not a celebration.
-
-### Data refresh
-
-* a GitHub Actions workflow redownloads the full 10 year window every Saturday and commits the updated parquet
-    * This is because Yahoo recalculates Adj Close retroactively whenever a dividend is paid. Append only the new rows and your old rows quietly go stale.
-* the sliding window also drops data older than 10 years automatically. Fresh data and cleanup in one move
-

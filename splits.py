@@ -48,6 +48,47 @@ def time_split(dates: pd.Index, n: int, test_frac: float = 0.2) -> tuple:
     return train_dates, gap_dates, test_dates
 
 
+def walk_forward_windows(
+    dates: pd.Index, n: int, min_train_rows: int = 750, test_rows: int = 250
+) -> list:
+    """Build (train_dates, test_dates) pairs for walk-forward validation.
+
+    Each window trains on EVERYTHING from the start of the data up to its
+    cutoff (expanding train, like real deployment: retrain on all history
+    available at that point), skips a gap of exactly n rows (same
+    contamination logic as time_split), then tests on the next `test_rows`
+    rows. Windows slide forward by `test_rows`, so test chunks never
+    overlap and every era after the warmup gets exactly one turn as the
+    exam. A final short chunk is kept only if it has at least half of
+    `test_rows`.
+    """
+    if n < 1:
+        raise ValueError(f"gap must equal the horizon n >= 1, got {n}")
+    if min_train_rows < 1 or test_rows < 1:
+        raise ValueError("min_train_rows and test_rows must be positive")
+    if not dates.is_monotonic_increasing:
+        raise ValueError("dates must be sorted oldest -> newest before splitting")
+
+    windows = []
+    test_start_position = min_train_rows + n
+    while test_start_position < len(dates):
+        test_end_position = min(test_start_position + test_rows, len(dates))
+        if test_end_position - test_start_position < test_rows / 2:
+            break  # leftover chunk too small to be a fair exam
+        train_end_position = test_start_position - n
+        windows.append(
+            (dates[:train_end_position], dates[test_start_position:test_end_position])
+        )
+        test_start_position += test_rows
+
+    if not windows:
+        raise ValueError(
+            f"not enough rows ({len(dates)}) for min_train_rows={min_train_rows} "
+            f"plus a {n}-row gap and a test chunk"
+        )
+    return windows
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--n", type=int, default=5, help="horizon in trading days (= gap size)")
