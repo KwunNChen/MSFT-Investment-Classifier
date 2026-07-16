@@ -34,29 +34,25 @@ from splits import walk_forward_windows
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", choices=["both", "logreg", "rf"], default="both")
-    parser.add_argument("--n", type=int, default=5, help="horizon in trading days")
-    parser.add_argument("--ticker", default="MSFT")
-    parser.add_argument("--test-rows", type=int, default=250, help="rows per test window (~1 year)")
-    parser.add_argument("--min-train-rows", type=int, default=750, help="training rows before window 1 (~3 years)")
-    args = parser.parse_args()
-    model_kinds = ["logreg", "rf"] if args.model == "both" else [args.model]
+def run_walk_forward(
+    dataset: pd.DataFrame,
+    label_column: str,
+    feature_columns: list,
+    model_kinds: list,
+    n: int,
+    min_train_rows: int = 750,
+    test_rows: int = 250,
+) -> list:
+    """Run the full walk-forward: fresh model per window, one exam each.
 
-    price_data = fetch_raw(args.ticker, years=10)
-    dataset = build_dataset(price_data, args.n)
-    label_column = f"label_up_{args.n}d"
-    feature_columns = [column for column in dataset.columns if column != label_column]
-    persistence_all = persistence(dataset[label_column], args.n)
-
+    Returns one dict per window with test period, row counts, baseline
+    accuracies, and each model's accuracy on that window's exact rows.
+    Reused by horizons.py so every horizon runs this identical code path.
+    """
+    persistence_all = persistence(dataset[label_column], n)
     windows = walk_forward_windows(
-        dataset.index, args.n, min_train_rows=args.min_train_rows, test_rows=args.test_rows
+        dataset.index, n, min_train_rows=min_train_rows, test_rows=test_rows
     )
-
-    print(f"\n=== Walk-forward: {args.ticker}, n={args.n}, {len(windows)} windows ===")
-    print(f"Models: {', '.join(MODEL_NAMES[kind] for kind in model_kinds)}. "
-          "Each window trains a FRESH model and takes one exam it has never seen.\n")
 
     window_results = []
     for window_number, (train_dates, test_dates) in enumerate(windows, start=1):
@@ -79,6 +75,32 @@ def main() -> None:
             test_predictions = pd.Series(model.predict(test_features), index=test_dates)
             row[kind] = evaluate_baseline(test_predictions, test_labels)["accuracy"]
         window_results.append(row)
+    return window_results
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model", choices=["both", "logreg", "rf"], default="both")
+    parser.add_argument("--n", type=int, default=5, help="horizon in trading days")
+    parser.add_argument("--ticker", default="MSFT")
+    parser.add_argument("--test-rows", type=int, default=250, help="rows per test window (~1 year)")
+    parser.add_argument("--min-train-rows", type=int, default=750, help="training rows before window 1 (~3 years)")
+    args = parser.parse_args()
+    model_kinds = ["logreg", "rf"] if args.model == "both" else [args.model]
+
+    price_data = fetch_raw(args.ticker, years=10)
+    dataset = build_dataset(price_data, args.n)
+    label_column = f"label_up_{args.n}d"
+    feature_columns = [column for column in dataset.columns if column != label_column]
+
+    window_results = run_walk_forward(
+        dataset, label_column, feature_columns, model_kinds, args.n,
+        min_train_rows=args.min_train_rows, test_rows=args.test_rows,
+    )
+
+    print(f"\n=== Walk-forward: {args.ticker}, n={args.n}, {len(window_results)} windows ===")
+    print(f"Models: {', '.join(MODEL_NAMES[kind] for kind in model_kinds)}. "
+          "Each window trains a FRESH model and takes one exam it has never seen.\n")
 
     # ---- per-window table (the deliverable: not just an average) ----
     model_headers = "".join(f"{MODEL_NAMES[kind]:>21}" for kind in model_kinds)

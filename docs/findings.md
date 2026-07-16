@@ -57,3 +57,28 @@ Persistence           49.4%
 * bottom line: the no signal finding holds in every regime of the decade. Bull market, covid crash, bear year, recovery: the models never beat doing nothing
 
 ![walk forward results](../results/walkforward_MSFT_n5.png)
+
+## horizons.py, aka the multi horizon forecast comparison
+
+* the final question: is "no signal" a 5 day quirk, or true everywhere? So the UNCHANGED pipeline reran at N of 1, 21, and 63 (plus 5 as the reference), walk forward and all
+    * Basically, this is the payoff for never hardcoding N. Four horizons = a loop over four numbers, zero code edits
+* the scoreboard (wins, ties, losses vs always up across the walk forward windows):
+
+```
+  N   rows   % up   logistic regression       random forest
+  1   2493   53.5%   1 win, 1 tie, 5 losses    0 wins, 0 ties, 7 losses
+  5   2489   58.7%   0 wins, 4 ties, 3 losses  0 wins, 1 tie, 6 losses
+ 21   2472   64.4%   3 wins, 2 ties, 2 losses  3 wins, 0 ties, 4 losses
+ 63   2388   73.1%   0 wins, 5 ties, 1 loss    1 win, 0 ties, 5 losses
+```
+
+* total: 8 wins in 54 fights, and no horizon gave either model a winning record
+* the bar CLIMBS with the horizon: MSFT rose in 53.5% of 1 day windows but 73.1% of quarter long windows
+    * This is because drift dominates longer windows. At N = 63, "do nothing, say up" is right three times out of four. So raw accuracies across horizons are not comparable, and each model only fights its own bar on its own days
+* the N = 21 "wins" are noise wearing a costume
+    * Basically, at N = 21 today's label and tomorrow's label describe almost the same 21 day stretch. A 250 day test window only holds about twelve INDEPENDENT outcomes, so per window scores swing wildly (28% to 84%) and a few scattered wins across unrelated eras is exactly what luck looks like
+    * real signal would show up as winning records repeated across eras. We got coin flip records with huge variance. Rule 7 says suspicion first, and here suspicion is the correct final answer
+* at N = 63 the rubber stamp reached its final form: with 73% drift, logistic regression tied the bar in 5 of 6 windows. In the chart the dashed baseline literally hides underneath the blue model line
+* the final sentence of the whole project: four textbook indicators contain no exploitable signal at any horizon from a day out to a quarter out, verified across every market regime of the decade. 54 fights, 8 lucky wins, zero winning records
+
+![multi horizon results](../results/horizons_MSFT.png)

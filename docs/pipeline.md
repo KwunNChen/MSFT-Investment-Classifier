@@ -94,6 +94,12 @@ Day:    1    2    3    4  |  5    6  |  7    8    9    10
 
 Both models' results live in [findings.md](findings.md).
 
+## backtest.py and horizons.py
+
+* backtest.py is walk forward validation: it reruns the whole experiment across seven rolling eras, training a FRESH model per era so every year of the decade gets one turn as the exam
+* horizons.py loops all of that over N of 1, 5, 21, and 63. Zero pipeline edits needed, since N was never hardcoded
+* both are evaluation only, NOT trading simulators. The full story and the charts live in [findings.md](findings.md)
+
 ### Data refresh
 
 * a GitHub Actions workflow redownloads the full 10 year window every Saturday and commits the updated parquet
