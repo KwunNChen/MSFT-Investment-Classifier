@@ -82,3 +82,7 @@ Persistence           49.4%
 * the final sentence of the whole project: four textbook indicators contain no exploitable signal at any horizon from a day out to a quarter out, verified across every market regime of the decade. 54 fights, 8 lucky wins, zero winning records
 
 ![multi horizon results](../results/horizons_MSFT.png)
+
+## What's next
+
+* V3 is underway: same rules, one new question. Does market context (S&P 500, Nasdaq, VIX) know something MSFT's own history does not? The win condition and build order live in [v3.md](v3.md)

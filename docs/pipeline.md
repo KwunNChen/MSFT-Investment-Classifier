@@ -21,6 +21,8 @@ Yahoo Finance API > data_pull.py > labels.py > baselines.py > splits.py > featur
 * yfinance receives JSON from Yahoo and hands back a pandas DataFrame, which gets cleaned and sorted
 * keeps both Close and Adj Close, and everything downstream uses Adj Close ONLY
     * This is because dividends make the raw Close drop about 0.2% on days where nothing market related happened. Use raw Close and you inject hundreds of fake down moves into the data.
+* for V3 the same script also pulls the market context tickers (^GSPC, ^IXIC, ^VIX) with ZERO code changes, since ticker was a parameter from day one
+    * the alignment pass caught a phantom VIX quote on Memorial Day 2026 (a market holiday, Yahoo glitch) and confirmed VIX volume is all zeros. Both quirks documented and handled before any feature touches the data
 
 ## labels.py
 

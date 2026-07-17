@@ -20,10 +20,17 @@ Random forest              47.6%            52.4%
 
 ![walk forward results](results/walkforward_MSFT_n5.png)
 
+## Where it's headed
+
+* v1 and v2 closed the book on MSFT only clues: no signal, verified everywhere
+* V3 (in progress) asks a genuinely new question: does MARKET CONTEXT (S&P 500, Nasdaq, VIX) know something the stock's own history does not?
+* win condition: a model with a winning record against always up across walk forward windows, with every design decision made on a sealed validation slice so the final judgment stays honest
+
 ## Read more
 
 * [How the pipeline works](docs/pipeline.md): every module explained, from the data pull to the models, plus the automated data refresh
 * [Findings in full](docs/findings.md): the results, the autopsy of what the models actually did, and the walk forward story
+* [What's next: V3](docs/v3.md): the market context attempt, its win condition, and the build order
 
 ## Run it
 
