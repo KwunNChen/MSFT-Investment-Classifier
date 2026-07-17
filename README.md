@@ -2,7 +2,7 @@
 
 * Educational ML project answering one question: will Microsoft close higher or lower N trading days from now? Up or down, nothing else. No price targets.
 * The whole thing is designed around NOT cheating rather than around accuracy. Every stage exists to block one of the ways stock models silently leak future information into training.
-    * Basically, beginner stock models usually "predict" well because they accidentally saw the future. This project is built so that can't happen, so whatever accuracy comes out is real.
+    * Basically, beginner stock models usually "predict" well because they accidentally saw the future. This one is built so that can't happen, so whatever accuracy comes out is real.
 * This is a learning project, not a trading system, and it will never place trades.
 
 ## The headline
@@ -13,22 +13,22 @@ Logistic regression        52.4%            52.4%
 Random forest              47.6%            52.4%
 ```
 
-* neither model beats "just say up every day." The linear model tied the bar by literally becoming it, and the forest memorized the training data perfectly then did WORSE than doing nothing
-* walk forward validation reran the same experiment across seven eras (2019 to 2026): the models went 0 for 14 against the baseline. The finding holds in every regime
-* then the unchanged pipeline reran at N of 1, 21, and 63 trading days: 8 lucky wins in 54 total fights, zero winning records at any horizon
-* conclusion: four textbook technical indicators carry no edge over market drift at ANY horizon from a day out to a quarter out, and the pipeline is built carefully enough that you can trust that sentence
+* neither model beats "just say up every day." Logistic regression tied the bar because it ended up predicting up every single day itself. The random forest memorized all of its training data and still came in below the baseline
+* walk forward validation reran the same experiment across seven eras (2019 to 2026) and the models lost or tied all 14 matchups against the baseline
+* rerunning the unchanged pipeline at N of 1, 21, and 63 trading days added 40 more matchups. The overall record came out 8 wins in 54, scattered across unrelated windows, never adding up to a winning record at any horizon
+* so: four textbook technical indicators carry no edge over market drift, from a day out to a quarter out. The pipeline exists to make that conclusion trustworthy
 
 ![walk forward results](results/walkforward_MSFT_n5.png)
 
 ## Where it's headed
 
-* v1 and v2 closed the book on MSFT only clues: no signal, verified everywhere
-* V3 (in progress) asks a genuinely new question: does MARKET CONTEXT (S&P 500, Nasdaq, VIX) know something the stock's own history does not?
-* win condition: a model with a winning record against always up across walk forward windows, with every design decision made on a sealed validation slice so the final judgment stays honest
+* v1 and v2 settled the MSFT only question: no signal anywhere
+* V3 (in progress) asks whether market context helps instead. The S&P 500, the Nasdaq, and the VIX might know something the stock's own history does not
+* the goal is a model with a winning record against always up across walk forward windows. Every design decision along the way gets made on a validation slice, so the final judgment stays untouched until the design is frozen
 
 ## Read more
 
-* [How the pipeline works](docs/pipeline.md): every module explained, from the data pull to the models, plus the automated data refresh
+* [How the pipeline works](docs/pipeline.md): every module explained, plus the automated data refresh
 * [Findings in full](docs/findings.md): the results, the autopsy of what the models actually did, and the walk forward story
 * [What's next: V3](docs/v3.md): the market context attempt, its win condition, and the build order
 

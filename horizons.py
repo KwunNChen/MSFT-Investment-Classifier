@@ -1,7 +1,6 @@
 """Multi-horizon comparison: the unchanged pipeline rerun at several N.
 
-The payoff for never hardcoding N. For each horizon this rebuilds the
-labels and the N-dependent momentum feature, then runs the exact same
+For each horizon this rebuilds the labels and the N-dependent momentum feature, then runs the exact same
 walk-forward code path as backtest.py (fresh model per window, gap = n,
 one exam each). Nothing else changes between horizons.
 

@@ -99,11 +99,11 @@ Both models' results live in [findings.md](findings.md).
 ## backtest.py and horizons.py
 
 * backtest.py is walk forward validation: it reruns the whole experiment across seven rolling eras, training a FRESH model per era so every year of the decade gets one turn as the exam
-* horizons.py loops all of that over N of 1, 5, 21, and 63. Zero pipeline edits needed, since N was never hardcoded
+* horizons.py loops all of that over N of 1, 5, 21, and 63. It needed no pipeline edits, since N was never hardcoded
 * both are evaluation only, NOT trading simulators. The full story and the charts live in [findings.md](findings.md)
 
 ### Data refresh
 
 * a GitHub Actions workflow redownloads the full 10 year window every Saturday and commits the updated parquet
     * This is because Yahoo recalculates Adj Close retroactively whenever a dividend is paid. Append only the new rows and your old rows quietly go stale.
-* the sliding window also drops data older than 10 years automatically. Fresh data and cleanup in one move
+* the sliding window also drops data older than 10 years automatically, so old rows fall off without a separate cleanup step
