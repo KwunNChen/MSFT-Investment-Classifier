@@ -49,13 +49,3 @@ python horizons.py      # rerun everything at N of 1, 5, 21, 63
 ```
 
 Run model.py again with the model flag set to rf for the random forest (same protocol). Every script also takes a flag for N (the horizon in trading days, default 5) and one for the ticker (default MSFT).
-
-## Rules the project runs on
-
-1. No lookahead. A feature on day T may only use information available by day T's close.
-2. Split by time, never shuffled, with a gap equal to N before the test period.
-3. Fit scalers on training data only.
-4. Touch the test set once per real iteration.
-5. Out of sample accuracy is the headline number, never training accuracy.
-6. Every evaluation gets compared against naive baselines.
-7. A great looking result triggers a leak hunt, not a celebration.
