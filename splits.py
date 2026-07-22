@@ -89,6 +89,24 @@ def walk_forward_windows(
     return windows
 
 
+def validation_split(train_dates: pd.Index, n: int, val_frac: float = 0.25) -> tuple:
+    """Carve one walk-forward window's training block into (inner_train,
+    gap, validation) for V3 design decisions (embedded/nested validation).
+
+    Validation = the tail `val_frac` of this window's training data, with
+    the same n-row gap logic as time_split. It is used as scratch paper for
+    picking context features (step 4); the real test slices stay sealed.
+
+    Invariant that keeps this honest: `train_dates` is a walk-forward
+    window's training block, which by construction already ends n rows
+    before that window's TEST slice. Validation is a strict subset of
+    `train_dates`, so no validation date is ever in that window's test set.
+    Selecting features on validation therefore cannot leak into the test
+    score. This reuses time_split so there is one gap implementation only.
+    """
+    return time_split(train_dates, n, test_frac=val_frac)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--n", type=int, default=5, help="horizon in trading days (= gap size)")
@@ -126,6 +144,32 @@ def main() -> None:
         f"test {labels[test_dates].mean() * 100:.1f}%"
     )
     print("(A train/test balance mismatch is a regime shift, not a bug — see step 2 notes.)")
+
+    # V3 embedded validation: each walk-forward window carves a validation
+    # slice from the tail of its OWN training block. Show the nesting for
+    # the first two windows and prove validation never touches the test.
+    windows = walk_forward_windows(labels.index, args.n)
+    print(f"\n=== Embedded validation (V3): {len(windows)} walk-forward windows ===")
+    for window_number, (window_train, window_test) in enumerate(windows[:2], start=1):
+        inner_train, inner_gap, validation = validation_split(window_train, args.n)
+        print(f"\nWindow {window_number}:")
+        for piece_name, piece_dates in [
+            ("inner_train", inner_train),
+            ("gap", inner_gap),
+            ("validation", validation),
+            ("test", window_test),
+        ]:
+            print(
+                f"  {piece_name:<11} {len(piece_dates):5d} rows   "
+                f"{piece_dates.min().date()} -> {piece_dates.max().date()}"
+            )
+        gap_to_test = labels.index.get_loc(window_test.min()) - labels.index.get_loc(validation.max()) - 1
+        disjoint = validation.max() < window_test.min()
+        print(
+            f"  validation ends {validation.max().date()}, test starts "
+            f"{window_test.min().date()} ({gap_to_test} rows apart) -> "
+            f"{'OK, sealed from test' if disjoint else 'OVERLAP!'}"
+        )
 
 
 if __name__ == "__main__":
