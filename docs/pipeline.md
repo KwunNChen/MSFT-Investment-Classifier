@@ -78,10 +78,17 @@ Day:    1    2    3    4  |  5    6  |  7    8    9    10
 ### features.py but in V3
 V1 proved MSFT's own price history is empty, so V3 asks whether the market around MSFT (like the NASDAQ) knows something the stock alone does not. Since this is located in features.py, it still runs, but only after V1 features
 
-* spx_momentum: the S&P 500's return over the past N days. Is the whole market trending, or just this stock?
-* rel_strength: MSFT's N day return minus the Nasdaq's. Is MSFT beating its own sector, or only riding it?
-* vix_level: the VIX close, the market's fear gauge. What regime are we in, calm or panicked?
-* vix_change: how much the VIX moved over the past N days. Is fear rising or falling?
+* spx_momentum: the whole market's version of momentum, the S&P 500 today divided by the S&P N days ago, minus 1
+    * Same math as momentum, but it's aimed at the market instead of the MSFT stock. 
+    * e.g. On 2025-03-14 the S&P was 5,639 against 5,770 five days earlier: 5639 / 5770 - 1 = -0.023, the market down 2.3% that week. Ours ranged -18% (2020-03-12, the covid crash) to +17% (2020-03-30). It tells the model whether a MSFT move was its own or the tide going out
+* rel_strength: MSFT's N day return minus the Nasdaq's over the same window
+    * On that same 2025-03-14, MSFT fell 1.2% while the Nasdaq fell 2.4%: -0.012 - (-0.024) = +0.012, so MSFT beat its sector by 1.2 points while both were dropping. 
+* vix_level: \the market's fear gauge
+    * Around 12 is a calm market, 20 is ordinary, 35 and up is panic. Model showed the feature ran from 9.14 (2017-11-03, the calmest stretch of the decade) to 82.69 (2020-03-16, covid). 
+    * It is the only feature that stays raw instead of being made scale free, because the VIX is ALREADY an annualized volatility percentage: 20 means the same thing in 2016 and 2026, unlike a share price that went from $52 to $385
+* vix_change: today's VIX minus the VIX N days ago
+    * Arithmetic
+    * Difference comes out in points. On 2025-03-14 the VIX was 21.77 against 23.37 five days earlier: 21.77 - 23.37 = -1.60, fear cooling off. Ours ranged -22.21 (2025-04-15) to +35.85 (2020-03-12, fear spiking that hard in a single week)
 
 ## model.py
 
