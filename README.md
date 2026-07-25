@@ -9,13 +9,13 @@
 
 ```
                       test accuracy   the bar (always up)
-Logistic regression        52.4%            52.4%
-Random forest              47.6%            52.4%
+Logistic regression        52.9%            52.9%
+Random forest              50.1%            52.9%
 ```
 
 * neither model beats "just say up every day." Logistic regression tied the bar because it ended up predicting up every single day itself. The random forest memorized all of its training data and still came in below the baseline
 * walk forward validation reran the same experiment across seven eras (2019 to 2026) and the models lost or tied all 14 matchups against the baseline
-* rerunning the unchanged pipeline at N of 1, 21, and 63 trading days added 40 more matchups. The overall record came out 8 wins in 54, scattered across unrelated windows, never adding up to a winning record at any horizon
+* rerunning the unchanged pipeline at N of 1, 21, and 63 trading days added 40 more matchups. The overall record came out 11 wins in 54, scattered across unrelated windows, never adding up to a winning record at any horizon
 * so: four textbook technical indicators carry no edge over market drift, from a day out to a quarter out. The pipeline exists to make that conclusion trustworthy
 
 ![walk forward results](results/walkforward_MSFT_n5.png)

@@ -3,27 +3,27 @@
   "ticker": "MSFT",
   "n": 5,
   "test_frac": 0.2,
-  "train_rows": 1986,
-  "test_rows": 498,
+  "train_rows": 1985,
+  "test_rows": 497,
   "train_accuracy": 1.0,
-  "test_accuracy": 0.4759036144578313,
-  "overfit_gap": 0.5240963855421688,
+  "test_accuracy": 0.5010060362173038,
+  "overfit_gap": 0.4989939637826962,
   "baselines_on_test": {
     "always_up": {
-      "accuracy": 0.5240963855421686,
-      "covered_rows": 498,
-      "total_labeled_rows": 498
+      "accuracy": 0.5291750503018109,
+      "covered_rows": 497,
+      "total_labeled_rows": 497
     },
     "persistence": {
-      "accuracy": 0.4939759036144578,
-      "covered_rows": 498,
-      "total_labeled_rows": 498
+      "accuracy": 0.4949698189134809,
+      "covered_rows": 497,
+      "total_labeled_rows": 497
     }
   },
   "feature_importances": {
-    "ma_ratio": 0.2434,
-    "volatility": 0.2733,
-    "volume_ratio": 0.236,
-    "momentum": 0.2473
+    "ma_ratio": 0.2471,
+    "volatility": 0.2689,
+    "volume_ratio": 0.241,
+    "momentum": 0.2431
   }
 }

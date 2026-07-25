@@ -37,7 +37,7 @@ Yahoo Finance API > data_pull.py > labels.py > baselines.py > splits.py > featur
 * this is the bar. Zero ML strategies get scored FIRST, so any future model gets judged against them and not against 50%
 * always_up(): a column of 1s, one per day. Never looks at any data, still scores 58.9%
     * This is because MSFT went up in about 59% of all 5 day windows. Pure market drift. A model scoring 60% would look impressive next to a coin flip while actually being nearly worthless, and that's exactly why the number gets written down.
-* persistence(): whatever the stock did over the last N days, guess it keeps doing that. Scored 49.8%, a LITERAL coin flip
+* persistence(): whatever the stock did over the last N days, guess it keeps doing that. Scored 49.7%, a LITERAL coin flip
     * Finding: last week's direction tells you nothing about next week.
     * Implemented by sliding the label column down N rows (positive shift, looking at the past), so each day only sees the direction of the window that already finished. Sliding it down just 1 row would peek at a window that hasn't closed yet.
 * evaluate_baseline() is the grader. Lines up guesses against true labels, counts % correct
@@ -63,8 +63,6 @@ Day:    1    2    3    4  |  5    6  |  7    8    9    10
 
 ## features.py
 
-## features.py
-
 * goal: turn raw prices into four features per day for the model to train on, all computed strictly from the past rows
 * ma_ratio: trend feature; average of the last 5 days divided by average of the last 20 days, minus 1
     * Shows if the stock hot or cold lately. So if last 5 days averaged $410, last 20 days averaged $400: 410 / 400 - 1 = +0.025, so the short term average is running 2.5% above the monthly average. Negative means it is cooling off
@@ -76,6 +74,14 @@ Day:    1    2    3    4  |  5    6  |  7    8    9    10
     * This is the percent return over the horizon. $380 a week ago to $400 today is 400 / 380 - 1 = +0.053, up 5.3% over the week. It is the only clue that changes shape with N: at N = 1 it is yesterday's move, at N = 63 it is the whole quarter's move
 * the first 20 rows get dropped since the rolling windows have no history to average yet
     * Mirror image of labels.py: features lose the FIRST rows (no past yet), labels lose the LAST rows (no future yet). The table gets nibbled from both ends
+
+### features.py but in V3
+V1 proved MSFT's own price history is empty, so V3 asks whether the market around MSFT (like the NASDAQ) knows something the stock alone does not. Since this is located in features.py, it still runs, but only after V1 features
+
+* spx_momentum: the S&P 500's return over the past N days. Is the whole market trending, or just this stock?
+* rel_strength: MSFT's N day return minus the Nasdaq's. Is MSFT beating its own sector, or only riding it?
+* vix_level: the VIX close, the market's fear gauge. What regime are we in, calm or panicked?
+* vix_change: how much the VIX moved over the past N days. Is fear rising or falling?
 
 ## model.py
 

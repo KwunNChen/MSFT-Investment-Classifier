@@ -1,8 +1,12 @@
-# Weekly data refresh: re-downloads the full sliding 10-year MSFT window and
-# commits the updated parquet. Full re-download on purpose — yfinance
-# recalculates Adj Close retroactively on each dividend, so appending to the
-# cache would leave stale rows. The sliding window also drops rows older than
-# 10 years automatically.
+# Weekly data refresh: re-downloads the full sliding 10-year window for MSFT
+# and the three market-context tickers, then commits the updated parquets.
+# Full re-download on purpose — yfinance recalculates Adj Close retroactively
+# on each dividend, so appending to the cache would leave stale rows. The
+# sliding window also drops rows older than 10 years automatically.
+#
+# All four tickers refresh in the SAME run on purpose. Moving MSFT forward
+# while the context tickers stay frozen leaves the caches on different
+# snapshots, which silently misaligns every context feature.
 #
 # Note: GitHub auto-disables cron workflows after ~60 days without repo
 # activity. If refreshes stop, re-enable with one click on the Actions tab.
@@ -29,8 +33,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Re-download data (sliding 10-year window)
-        run: python data_pull.py --force
+      - name: Re-download data (sliding 10-year window, all four tickers)
+        run: |
+          python data_pull.py --force
+          python data_pull.py --force --ticker "^GSPC"
+          python data_pull.py --force --ticker "^IXIC"
+          python data_pull.py --force --ticker "^VIX"
 
       - name: Commit refreshed data if changed
         run: |

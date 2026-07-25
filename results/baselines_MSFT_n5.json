@@ -2,25 +2,25 @@
   "ticker": "MSFT",
   "n": 5,
   "date_range": [
-    "2016-07-11",
-    "2026-07-02"
+    "2016-07-18",
+    "2026-07-08"
   ],
-  "labeled_rows": 2509,
+  "labeled_rows": 2507,
   "baselines": {
     "always_up": {
-      "accuracy": 0.5890793144679155,
-      "covered_rows": 2509,
-      "total_labeled_rows": 2509
+      "accuracy": 0.5887514958117271,
+      "covered_rows": 2507,
+      "total_labeled_rows": 2507
     },
     "always_down": {
-      "accuracy": 0.4109206855320845,
-      "covered_rows": 2509,
-      "total_labeled_rows": 2509
+      "accuracy": 0.41124850418827286,
+      "covered_rows": 2507,
+      "total_labeled_rows": 2507
     },
     "persistence": {
-      "accuracy": 0.4976038338658147,
-      "covered_rows": 2504,
-      "total_labeled_rows": 2509
+      "accuracy": 0.49720223820943243,
+      "covered_rows": 2502,
+      "total_labeled_rows": 2507
     }
   }
 }
