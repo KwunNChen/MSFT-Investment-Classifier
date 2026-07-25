@@ -63,16 +63,19 @@ Day:    1    2    3    4  |  5    6  |  7    8    9    10
 
 ## features.py
 
-* goal: turn raw prices into four clues per day for the model to train on, all computed strictly from the past
-* ma_ratio: this week's average price vs this month's, as one number. Positive means trading above the monthly trend
-    * This is because a raw average is just a price level ($52 in 2016, $385 in 2026), useless across eras. The ratio means the same thing in any year: +0.02 = 2% above trend.
-* volatility: the spread (standard deviation) of the last 20 daily returns
-    * Basically, small = calm grind, large = whipsaw. Ours ranged 0.3% to 7%.
-* volume_ratio: today's volume vs its own 20 day average, minus 1
-    * Basically, +3.0 means four times normal volume. Something happened that day.
-* momentum: the return over the past N days. Same N as the label, so the clue and the question always cover matching window sizes
+## features.py
+
+* goal: turn raw prices into four features per day for the model to train on, all computed strictly from the past rows
+* ma_ratio: trend feature; average of the last 5 days divided by average of the last 20 days, minus 1
+    * Shows if the stock hot or cold lately. So if last 5 days averaged $410, last 20 days averaged $400: 410 / 400 - 1 = +0.025, so the short term average is running 2.5% above the monthly average. Negative means it is cooling off
+* volatility: standard deviation of the last 20 daily returns
+    * Most days moving about half a percent gives volatility around 0.005. Some days swinging 3% gives volatility around 0.03. It does not care about direction, up or down swings both count as movement
+* volume_ratio: unusual activity clue, today's volume divided by the 20 day average volume, minus 1
+    * 40 million shares today against a 20 million average is 40,000,000 / 20,000,000 - 1 = +1.0, double the normal volume. Something happened that day. Near 0 is an ordinary sleepy trading day
+* momentum: today's price divided by the price N days ago, minus 1
+    * This is the percent return over the horizon. $380 a week ago to $400 today is 400 / 380 - 1 = +0.053, up 5.3% over the week. It is the only clue that changes shape with N: at N = 1 it is yesterday's move, at N = 63 it is the whole quarter's move
 * the first 20 rows get dropped since the rolling windows have no history to average yet
-    * Mirror image of labels.py: features lose the FIRST rows (no past yet), labels lose the LAST rows (no future yet). The table gets nibbled from both ends.
+    * Mirror image of labels.py: features lose the FIRST rows (no past yet), labels lose the LAST rows (no future yet). The table gets nibbled from both ends
 
 ## model.py
 
